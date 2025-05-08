@@ -7,7 +7,7 @@ from pathlib import Path
 hand_info = {}
 
 
-def extract_hand_header_info(header_line: str, sub_header_line: str) -> dict:
+def parse_hand_header_info(header_line: str, sub_header_line: str) -> dict:
     header_info = {}
 
     # table_nm
@@ -52,6 +52,48 @@ def extract_hand_header_info(header_line: str, sub_header_line: str) -> dict:
     return header_info
 
 
+def parse_board_runout(lines: list) -> dict:
+    board = {
+        'flop_card_1': None,
+        'flop_card_2': None,
+        'flop_card_3': None,
+        'turn_card': None,
+        'river_card': None,
+        'showdown_ind': False,
+        'hero_hole_card_1': None,
+        'hero_hole_card_2': None
+    }
+
+    for line in lines:
+        if 'Dealt to' in line:
+            hole_cards = re.findall(r'\[([^\]]+)\]', line)[0].split()
+            if hole_cards:
+                board['hero_hole_card_1'] = hole_cards[0]
+                board['hero_hole_card_2'] = hole_cards[1]
+
+        elif '*** FLOP ***' in line:
+            flop_cards = re.findall(r'\[([^\]]+)\]', line)[0].split()
+            if flop_cards:
+                board['flop_card_1'] = flop_cards[0]
+                board['flop_card_2'] = flop_cards[1]
+                board['flop_card_3'] = flop_cards[2]
+
+        elif '*** TURN ***' in line:
+            turn_match = re.findall(r'\[([^\]]+)\] \[([^\]]+)\]', line)
+            if turn_match:
+                board['turn_card'] = turn_match[0][1]
+
+        elif '*** RIVER ***' in line:
+            river_match = re.findall(r'\[([^\]]+)\] \[([^\]]+)\]', line)
+            if river_match:
+                board['river_card'] = river_match[0][1]
+
+        elif '*** SHOW DOWN ***' in line:
+            board['showdown_ind'] = True
+    
+    return board
+
+
 hand_history_path = r"C:\Users\jrheb\AppData\Local\PokerStars.USMI\HandHistory\OldGregg686\HH20250429 Rigel - $0.02-$0.05 - USD No Limit Hold'em - test.txt"
 
 hands = {}
@@ -70,10 +112,14 @@ hands_list = table_contents.split('\n\n\n\n')
 for hand in hands_list:
     hand_lines = hand.split('\n')
 
-    # hand info function can go here
+    # headers
     hand_header = hand_lines[0]
     hand_subheader = hand_lines[1]
-    header_info = extract_hand_header_info(hand_header, hand_subheader)
-
+    header_info = parse_hand_header_info(hand_header, hand_subheader)
     hand_info.update(header_info)
+
+    # board
+    board = parse_board_runout(hand_lines)
+    hand_info.update(board)
+
     print(hand_info)
